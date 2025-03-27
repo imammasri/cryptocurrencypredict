@@ -8,7 +8,6 @@ import requests
 import tempfile
 from datetime import datetime
 
-# Konfigurasi tampilan
 theme_color = "#ffcc00"
 st.set_page_config(page_title="Dashboard Prediksi", layout="wide")
 
@@ -23,11 +22,9 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# Sidebar dengan gambar dari Google Drive
 st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/5/57/Binance_Logo.png", use_container_width=True)
 st.sidebar.title("Pengaturan Prediksi")
 
-# Path dataset dan model (ubah ke direct download format)
 actual_paths = {
     "Bitcoin 5m": "https://drive.google.com/uc?id=10uGPMZDa9qc6mgGAYbnRWH7H7hWVfeku",
     "Bitcoin 15m": "https://drive.google.com/uc?id=1Fc-HHUmU03TLO8bh_9ODwxujvzdTDqy8",
@@ -49,7 +46,6 @@ arima_orders = {
     "Ethereum 15m": (4, 1, 3)
 }
 
-# Pilihan dataset
 dataset_choice = st.sidebar.selectbox("Pilih Dataset:", list(actual_paths.keys()))
 
 if dataset_choice:
@@ -81,7 +77,6 @@ if dataset_choice:
             st.error("❌ Gagal download model!")
             return None
 
-    # Fungsi Prediksi
     def predict_arima_lstm(df, selected_datetime, lstm_model, arima_order, freq):
         selected_datetime = pd.to_datetime(selected_datetime)
         timestep = df.index.get_loc(selected_datetime)
@@ -90,16 +85,13 @@ if dataset_choice:
             st.error("Data tidak cukup untuk prediksi, pilih tanggal yang lebih besar!")
             return None, None, None, None
 
-        # ARIMA
         model_arima = sm.tsa.ARIMA(df['Close'].iloc[:timestep], order=arima_order).fit()
         arima_forecast = model_arima.forecast(steps=10)
 
-        # LSTM Input
         selected_features = ['Close']
         input_features = np.tile(df[selected_features].iloc[timestep-4:timestep].values, (10, 1, 1))
         lstm_predictions = lstm_model.predict(input_features).flatten()
 
-        # Hybrid Prediction
         pred_hybrid = arima_forecast[:10] + lstm_predictions
         prediction_dates = pd.date_range(start=selected_datetime, periods=10*3, freq="5min")
 
