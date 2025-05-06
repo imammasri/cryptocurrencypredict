@@ -43,15 +43,11 @@ interval_freq = {
 }
 
 @st.cache_data
-
 def load_csv_from_drive(link):
-    url = link
-    df = pd.read_csv(url)
+    df = pd.read_csv(link)
     df['Datetime'] = pd.to_datetime(df['Datetime'])
     df.set_index('Datetime', inplace=True)
     return df
-
-# Download model dari Drive
 
 def download_model(model_url):
     response = requests.get(model_url)
@@ -64,30 +60,35 @@ def download_model(model_url):
         st.error("❌ Gagal download model!")
         return None
 
-# Fungsi prediksi 5 langkah ke depan
+def predict_five_steps(df, lstm_model, arima_order, selected_datetime, interval_label):
+    interval_minutes = int(interval_label.replace("m", ""))
+    prediction_dates = [selected_datetime - timedelta(minutes=i*interval_minutes) for i in reversed(range(5))]
 
-def predict_multiple_steps(df, lstm_model, arima_order, selected_datetime, interval_label):
-    interval_min = int(interval_label.replace("m", ""))
-    if selected_datetime not in df.index:
-        selected_datetime = df.index[df.index.get_indexer([selected_datetime], method='nearest')[0]]
+    hybrid_preds = []
+    actuals = []
 
-    idx = df.index.get_loc(selected_datetime)
-    if idx < 4:
-        idx = 4
-        selected_datetime = df.index[idx]
+    for pred_time in prediction_dates:
+        if pred_time not in df.index:
+            pred_time = df.index[df.index.get_indexer([pred_time], method='nearest')[0]]
 
-    arima_data = df['Close'].iloc[:idx]
-    model_arima = sm.tsa.ARIMA(arima_data, order=arima_order).fit()
-    arima_forecast = model_arima.forecast(steps=5)
+        idx = df.index.get_loc(pred_time)
+        if idx < 4:
+            hybrid_preds.append(np.nan)
+            actuals.append(np.nan)
+            continue
 
-    input_seq = df['Close'].iloc[idx-4:idx].values
-    input_features = np.tile(input_seq, (5, 1)).reshape(5, 4, 1)
-    lstm_pred = lstm_model.predict(input_features).flatten()
-    hybrid_pred = arima_forecast + lstm_pred
+        arima_data = df['Close'].iloc[:idx]
+        model_arima = sm.tsa.ARIMA(arima_data, order=arima_order).fit()
+        arima_forecast = model_arima.forecast(steps=1)[0]
 
-    prediction_dates = pd.date_range(start=df.index[idx], periods=5, freq=interval_freq[interval_label])
-    actual_values = df['Close'].reindex(prediction_dates)
-    return prediction_dates, hybrid_pred, actual_values
+        input_seq = df['Close'].iloc[idx-4:idx].values.reshape(1, 4, 1)
+        lstm_forecast = lstm_model.predict(input_seq, verbose=0).flatten()[0]
+
+        hybrid = arima_forecast + lstm_forecast
+        hybrid_preds.append(hybrid)
+        actuals.append(df['Close'].iloc[idx])
+
+    return prediction_dates, hybrid_preds, actuals
 
 if dataset_choice:
     symbol = dataset_choice.split()[0]
@@ -119,12 +120,12 @@ if dataset_choice:
         model_path = download_model(model_paths[dataset_choice])
         if model_path:
             lstm_model = tf.keras.models.load_model(model_path)
-            prediction_dates, hybrid_pred, actual_values = predict_multiple_steps(df, lstm_model, arima_orders[dataset_choice], selected_datetime, interval_label)
+            prediction_dates, hybrid_pred, actual_values = predict_five_steps(df, lstm_model, arima_orders[dataset_choice], selected_datetime, interval_label)
 
             pred_df = pd.DataFrame({
                 'Datetime': prediction_dates,
                 'Hybrid Prediction': hybrid_pred,
-                'Actual Data': actual_values.values
+                'Actual Data': actual_values
             })
 
             st.subheader("📑 Hasil Prediksi vs Data Aktual")
