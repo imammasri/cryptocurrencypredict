@@ -8,7 +8,6 @@ import tempfile
 from datetime import datetime, timedelta
 import requests
 
-# Konfigurasi halaman
 st.set_page_config(page_title="Dashboard Prediksi Historis", layout="wide")
 
 st.markdown("""
@@ -26,14 +25,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
 st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/5/57/Binance_Logo.png", use_container_width=True)
 st.sidebar.title("⚙️ Pengaturan Prediksi")
 
-# Pilih Dataset
 dataset_choice = st.sidebar.selectbox("📊 Pilih Dataset:", ["BTCUSDT 5m", "BTCUSDT 15m", "ETHUSDT 5m", "ETHUSDT 15m"])
 
-# Link Google Drive CSV untuk masing-masing dataset
 dataset_links = {
     "BTCUSDT 5m": "https://drive.google.com/uc?id=1HbVV1AspJFB79qHpRXFHN-thhcbB8fuJ",
     "BTCUSDT 15m": "https://drive.google.com/uc?id=1qtd0M8v3Aq4p60FclIh86IDIAp6ABrBE",
